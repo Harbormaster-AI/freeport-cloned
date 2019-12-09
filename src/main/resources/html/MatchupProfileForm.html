@@ -1,0 +1,290 @@
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+<script type="text/javascript" src="/js/jquery-mask-as-number.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.js"></script>
+
+<script>
+    $('.maskedWholeNumberField').maskAsNumber();
+    $('.maskedDecimalField').maskAsNumber({decimals: 2});
+</script>
+
+<script type="text/javascript">
+    $(".form_datetime").datetimepicker({format: 'yyyy-mm-dd',autoclose: true,todayBtn: true});
+</script>             
+
+<script type="text/javascript">
+
+	$( document ).ready(function()
+	{
+		var action = getParam("action");
+
+	 	if ( action == 'edit' )
+			$( '#MatchupAssociationDivId' ).show();
+
+		var url, args, parentId, parentUrl, addUrl, deleteUrl, modelUrl;
+			parentId	= "matchupId=" + getParam("matchupId");
+  		parentUrl	= "/Matchup/saveGames?" + parentId;
+  		addUrl 		= "/html/GameProfileForm.html?action=create";
+  		deleteUrl 	= "/Matchup/deleteGames?" + parentId;
+  		modelUrl 	= "/Matchup/loadGames?" + parentId;
+
+		args = 'roleName=Games&addUrl=' + addUrl + '&deleteUrl=' + deleteUrl + '&modelUrl=' + modelUrl + '&parentUrl=' + parentUrl;
+		
+		url = '/html/GameViewAllList.html?' + args;
+		
+		jQuery.get( url, function( data ) 
+		{
+		    $('#' + 'Matchup_GamesDivId').html( data );
+		});		
+		
+		//$('#' + 'Matchup_GamesDivId').load(url);
+		
+	  
+	 	var id = getParam("matchupId");
+
+		// if edit, populate form fields		
+		if ( action == 'edit' )
+		{
+			var id = getParam("matchupId");
+			
+			jQuery.ajax(
+			{
+		  		url: '/Matchup/load?matchupId=' + id,
+		  		dataType: 'json',
+			}).always(function( data ) 
+			{
+				var allControls = document.querySelectorAll("input, select, textArea");
+
+				for(var i=0; i < allControls.length; i++)
+				{
+					var element = allControls[i];
+					var elementName = element.name;
+					var val = '';
+					
+					var indexes = elementName.split( "." );
+					if ( indexes.length == 1 )
+						val = data[indexes[0]];
+					else if ( indexes.length == 2 && data[indexes[0]] != null )
+						val = data[indexes[0]][indexes[1]];
+
+					if ( val !== undefined && element.type )
+					{
+						if ( element.type === 'checkbox' )
+						{
+							if ( val == true )
+								element.checked = true;
+							else
+								element.checked = false;
+						}
+						else if ( element.type === 'select' )
+						{
+							// select the right option
+						}
+						element.value = val;
+					}
+				}
+			});
+		}
+	});
+	
+	function doneSavingMatchup()
+	{
+		document.getElementById("MatchupFormStatusDivId").innerHTML = '<span style="color:blue">done saving</span>';
+	}
+	
+	function resetMatchup()
+	{
+		document.getElementById("MatchupProfileFormId").reset();
+	}
+	
+	function saveMatchup()
+	{
+		$('#MatchupFormLoadingDivId').show();
+
+		// need to force the val to be handled by the Boolean type
+		$("#MatchupProfileFormId input:checkbox").each(function()
+		{
+    		if ( $(this).is(':checked') == false ) 
+    			$(this).val( 'false' );    			
+    		else
+    			$(this).val('true');
+  		});
+
+		var url 		= '/Matchup/save';		
+		var parentUrl 	= "${parentUrl}";
+		var formData 	= formDataToJson( $('#MatchupProfileFormId'));
+		var action 		= "${action}";
+
+		console.log( 'parentUrl is ' + parentUrl );
+					
+		formData = JSON.stringify( formData );
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+	  		data : formData,
+		}).always(function( data ) 
+		{
+			if ( parentUrl != 'null' && parentUrl != '' && parentUrl != '${parentUrl}' )
+			{
+				parentUrl = parentUrl + '&childId=' + data['matchupId'];
+				jQuery.ajax(
+				{
+			  		url: parentUrl,
+			  		dataType: 'json',
+				}).always(function( data ) 
+				{
+				});
+			}
+
+/* 
+   force a close on create rather than show the children since there are none,\
+   causing an inspection on a freshly created Matchup
+   
+			// need to assign the related hidden primary key element value to 
+			// the new value created during the save
+			document.getElementById('matchupId').value = data['matchupId'];
+
+			if ( action == 'create' )
+				$( '#MatchupAssociationDivId' ).show();
+*/				
+			doneSavingMatchup();
+		});
+		
+		$('#MatchupFormLoadingDivId').hide();			
+	
+	}
+		function addGames()
+	{
+		addHelperForMatchup( 'Game', 'Games' );
+	}
+
+	function deleteGames()
+	{
+		var ids;
+		deleteHelperForMatchup( 'Games', 'frames', ids );
+	}
+	
+	function addGamesFromList()
+	{
+	}
+	
+        function addHelperForMatchup( associationClassType, roleName )
+	{    
+		var title = "Add New " + associationClassType + " for Matchup " + roleName;
+		var parentId = document.getElementById("matchupId").value;
+		parentUrl = '/Matchup/save' + roleName + '?matchupId=' + parentId;
+		var url = '/html/' + associationClassType + 'ProfileForm.html?action=create&parentUrl=' + parentUrl + '&parentName=matchup&roleName=' + roleName;
+		var eventToFire = 'refresh' + roleName + 'ForMatchup';
+		inspectionDialog( title, url, eventToFire );
+    }
+
+	function deleteHelperForMatchup( nameOfRole, keyFieldName, ids )
+	{
+    	BootstrapDialog.confirm
+    	({
+        	title: 'WARNING',
+        	message: 'Are you sure?',
+            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+            closable: true, // <-- Default value is false
+            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+            callback: function(result) 
+            {
+				var elementName = nameOfRole.toLowerCase() + "." + keyFieldName;
+				var element 	= document.getElementsByName(elementName)[0];
+				var url 		= '/Matchup/delete' + nameOfRole;
+				
+				url = url + '?childIds=' + ids;
+				
+				jQuery.ajax(
+				{
+			  		url: url,
+			  		dataType: 'text',
+			  		data : $('#MatchupProfileFormId').serialize(),
+				}).always(function( data ) 
+				{
+					document.getElementById("MatchupFormStatusDivId").innerHTML = '<span style="color:blue">done deleting</span>';
+					element.value = ""; // clear it
+				});
+			}
+    	});
+	
+	}
+</script>
+
+<div id="MatchupProfileFormDiv" style="padding:4px;border:2px solid lightgray">
+  <form id="MatchupProfileFormId" class="formTableClass">
+    <input type=hidden id="matchupId" name="matchupId" />  		  	
+<!-- Direct Attributes -->          	
+<table class="formTableClass">
+	<tr class="formTRClass">
+	  <td class="formTDClass">name</td>
+	  <td class="formTDClass">	<input type='text' id="name" name="name" placeHolder="name" required="" validate="" class="form-control" />	
+	</td>
+	</tr>
+</table>
+
+<!-- Composites -->          	
+    <table class="formTableClass">
+    </table>
+  	<br>
+	<div>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="save Matchup" onclick="saveMatchup()">
+		    <button type="button" class="btn btn-outline-primary">
+		      	Save
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="reset" onclick="resetMatchup()">
+			<button type="button" class="btn btn-outline-primary">	
+		      	Reset
+			</button>
+		</a>
+	</div>
+	 <div id="MatchupFormLoadingDivId" style="display:none">
+  		saving Matchup...<image src="../img/load_new.gif" width=48 height=48/>
+	</div>				  				  
+	<div id="MatchupFormStatusDivId">
+	</div>				  				  
+	 
+  </form>
+</div>
+
+<div id="MatchupAssociationDivId" style="display:none">
+  <div class="singleAssociationClass">
+    <table class="associationTableClass">
+	</table>
+  </div>
+
+  <div "class=multipleAssociationClass">  
+	<table class="associationTableClass">  
+		  <tr class="formRowClass">
+	    <td class="formTDClass">
+		  <div class="sectionClass">
+		    <div class="sectionHeaderClass">
+		      <span class="sectionTitleClass">
+		        Games
+		      </span>
+		    </div>
+		    <div class="sectionBodyClass">	  
+	          <table class="formTableClass">
+	            <tr class="formTRClass">
+	              <td class="formTDClass">
+	                <div id="Matchup_GamesDivId">
+	                </div>
+	      	      </td>
+	            </tr>
+		      </table>
+		    </div>
+		  </div>
+	    </td>
+	  </tr>
+		</table>
+
+  </div>
+</div>
+
+

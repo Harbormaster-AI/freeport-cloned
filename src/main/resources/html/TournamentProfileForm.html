@@ -1,0 +1,298 @@
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+<script type="text/javascript" src="/js/jquery-mask-as-number.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.js"></script>
+
+<script>
+    $('.maskedWholeNumberField').maskAsNumber();
+    $('.maskedDecimalField').maskAsNumber({decimals: 2});
+</script>
+
+<script type="text/javascript">
+    $(".form_datetime").datetimepicker({format: 'yyyy-mm-dd',autoclose: true,todayBtn: true});
+</script>             
+
+<script type="text/javascript">
+
+	$( document ).ready(function()
+	{
+		var action = getParam("action");
+
+	 	if ( action == 'edit' )
+			$( '#TournamentAssociationDivId' ).show();
+
+		var url, args, parentId, parentUrl, addUrl, deleteUrl, modelUrl;
+			parentId	= "tournamentId=" + getParam("tournamentId");
+  		parentUrl	= "/Tournament/saveMatchups?" + parentId;
+  		addUrl 		= "/html/MatchupProfileForm.html?action=create";
+  		deleteUrl 	= "/Tournament/deleteMatchups?" + parentId;
+  		modelUrl 	= "/Tournament/loadMatchups?" + parentId;
+
+		args = 'roleName=Matchups&addUrl=' + addUrl + '&deleteUrl=' + deleteUrl + '&modelUrl=' + modelUrl + '&parentUrl=' + parentUrl;
+		
+		url = '/html/MatchupViewAllList.html?' + args;
+		
+		jQuery.get( url, function( data ) 
+		{
+		    $('#' + 'Tournament_MatchupsDivId').html( data );
+		});		
+		
+		//$('#' + 'Tournament_MatchupsDivId').load(url);
+		
+	  
+	 	var id = getParam("tournamentId");
+
+		// if edit, populate form fields		
+		if ( action == 'edit' )
+		{
+			var id = getParam("tournamentId");
+			
+			jQuery.ajax(
+			{
+		  		url: '/Tournament/load?tournamentId=' + id,
+		  		dataType: 'json',
+			}).always(function( data ) 
+			{
+				var allControls = document.querySelectorAll("input, select, textArea");
+
+				for(var i=0; i < allControls.length; i++)
+				{
+					var element = allControls[i];
+					var elementName = element.name;
+					var val = '';
+					
+					var indexes = elementName.split( "." );
+					if ( indexes.length == 1 )
+						val = data[indexes[0]];
+					else if ( indexes.length == 2 && data[indexes[0]] != null )
+						val = data[indexes[0]][indexes[1]];
+
+					if ( val !== undefined && element.type )
+					{
+						if ( element.type === 'checkbox' )
+						{
+							if ( val == true )
+								element.checked = true;
+							else
+								element.checked = false;
+						}
+						else if ( element.type === 'select' )
+						{
+							// select the right option
+						}
+						element.value = val;
+					}
+				}
+			});
+		}
+	});
+	
+	function doneSavingTournament()
+	{
+		document.getElementById("TournamentFormStatusDivId").innerHTML = '<span style="color:blue">done saving</span>';
+	}
+	
+	function resetTournament()
+	{
+		document.getElementById("TournamentProfileFormId").reset();
+	}
+	
+	function saveTournament()
+	{
+		$('#TournamentFormLoadingDivId').show();
+
+		// need to force the val to be handled by the Boolean type
+		$("#TournamentProfileFormId input:checkbox").each(function()
+		{
+    		if ( $(this).is(':checked') == false ) 
+    			$(this).val( 'false' );    			
+    		else
+    			$(this).val('true');
+  		});
+
+		var url 		= '/Tournament/save';		
+		var parentUrl 	= "${parentUrl}";
+		var formData 	= formDataToJson( $('#TournamentProfileFormId'));
+		var action 		= "${action}";
+
+		console.log( 'parentUrl is ' + parentUrl );
+					
+		formData = JSON.stringify( formData );
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+	  		data : formData,
+		}).always(function( data ) 
+		{
+			if ( parentUrl != 'null' && parentUrl != '' && parentUrl != '${parentUrl}' )
+			{
+				parentUrl = parentUrl + '&childId=' + data['tournamentId'];
+				jQuery.ajax(
+				{
+			  		url: parentUrl,
+			  		dataType: 'json',
+				}).always(function( data ) 
+				{
+				});
+			}
+
+/* 
+   force a close on create rather than show the children since there are none,\
+   causing an inspection on a freshly created Tournament
+   
+			// need to assign the related hidden primary key element value to 
+			// the new value created during the save
+			document.getElementById('tournamentId').value = data['tournamentId'];
+
+			if ( action == 'create' )
+				$( '#TournamentAssociationDivId' ).show();
+*/				
+			doneSavingTournament();
+		});
+		
+		$('#TournamentFormLoadingDivId').hide();			
+	
+	}
+		function addMatchups()
+	{
+		addHelperForTournament( 'Matchup', 'Matchups' );
+	}
+
+	function deleteMatchups()
+	{
+		var ids;
+		deleteHelperForTournament( 'Matchups', 'name', ids );
+	}
+	
+	function addMatchupsFromList()
+	{
+	}
+	
+        function addHelperForTournament( associationClassType, roleName )
+	{    
+		var title = "Add New " + associationClassType + " for Tournament " + roleName;
+		var parentId = document.getElementById("tournamentId").value;
+		parentUrl = '/Tournament/save' + roleName + '?tournamentId=' + parentId;
+		var url = '/html/' + associationClassType + 'ProfileForm.html?action=create&parentUrl=' + parentUrl + '&parentName=tournament&roleName=' + roleName;
+		var eventToFire = 'refresh' + roleName + 'ForTournament';
+		inspectionDialog( title, url, eventToFire );
+    }
+
+	function deleteHelperForTournament( nameOfRole, keyFieldName, ids )
+	{
+    	BootstrapDialog.confirm
+    	({
+        	title: 'WARNING',
+        	message: 'Are you sure?',
+            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+            closable: true, // <-- Default value is false
+            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+            callback: function(result) 
+            {
+				var elementName = nameOfRole.toLowerCase() + "." + keyFieldName;
+				var element 	= document.getElementsByName(elementName)[0];
+				var url 		= '/Tournament/delete' + nameOfRole;
+				
+				url = url + '?childIds=' + ids;
+				
+				jQuery.ajax(
+				{
+			  		url: url,
+			  		dataType: 'text',
+			  		data : $('#TournamentProfileFormId').serialize(),
+				}).always(function( data ) 
+				{
+					document.getElementById("TournamentFormStatusDivId").innerHTML = '<span style="color:blue">done deleting</span>';
+					element.value = ""; // clear it
+				});
+			}
+    	});
+	
+	}
+</script>
+
+<div id="TournamentProfileFormDiv" style="padding:4px;border:2px solid lightgray">
+  <form id="TournamentProfileFormId" class="formTableClass">
+    <input type=hidden id="tournamentId" name="tournamentId" />  		  	
+<!-- Direct Attributes -->          	
+<table class="formTableClass">
+	<tr class="formTRClass">
+	  <td class="formTDClass">name</td>
+	  <td class="formTDClass">	<input type='text' id="name" name="name" placeHolder="name" required="" validate="" class="form-control" />	
+	</td>
+	</tr>
+	<tr class="formTRClass">
+	  <td class="formTDClass">Type</td>
+	  <td class="formTDClass">	<select id='type' name='type' class="form-control">
+        	<option value='Pro'>Pro</option>
+        	<option value='Amateur'>Amateur</option>
+    </select>	
+	</td>
+	</tr>
+</table>
+
+<!-- Composites -->          	
+    <table class="formTableClass">
+    </table>
+  	<br>
+	<div>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="save Tournament" onclick="saveTournament()">
+		    <button type="button" class="btn btn-outline-primary">
+		      	Save
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="reset" onclick="resetTournament()">
+			<button type="button" class="btn btn-outline-primary">	
+		      	Reset
+			</button>
+		</a>
+	</div>
+	 <div id="TournamentFormLoadingDivId" style="display:none">
+  		saving Tournament...<image src="../img/load_new.gif" width=48 height=48/>
+	</div>				  				  
+	<div id="TournamentFormStatusDivId">
+	</div>				  				  
+	 
+  </form>
+</div>
+
+<div id="TournamentAssociationDivId" style="display:none">
+  <div class="singleAssociationClass">
+    <table class="associationTableClass">
+	</table>
+  </div>
+
+  <div "class=multipleAssociationClass">  
+	<table class="associationTableClass">  
+		  <tr class="formRowClass">
+	    <td class="formTDClass">
+		  <div class="sectionClass">
+		    <div class="sectionHeaderClass">
+		      <span class="sectionTitleClass">
+		        Matchups
+		      </span>
+		    </div>
+		    <div class="sectionBodyClass">	  
+	          <table class="formTableClass">
+	            <tr class="formTRClass">
+	              <td class="formTDClass">
+	                <div id="Tournament_MatchupsDivId">
+	                </div>
+	      	      </td>
+	            </tr>
+		      </table>
+		    </div>
+		  </div>
+	    </td>
+	  </tr>
+		</table>
+
+  </div>
+</div>
+
+

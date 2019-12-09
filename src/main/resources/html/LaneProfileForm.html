@@ -1,0 +1,237 @@
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+<script type="text/javascript" src="/js/jquery-mask-as-number.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.js"></script>
+
+<script>
+    $('.maskedWholeNumberField').maskAsNumber();
+    $('.maskedDecimalField').maskAsNumber({decimals: 2});
+</script>
+
+<script type="text/javascript">
+    $(".form_datetime").datetimepicker({format: 'yyyy-mm-dd',autoclose: true,todayBtn: true});
+</script>             
+
+<script type="text/javascript">
+
+	$( document ).ready(function()
+	{
+		var action = getParam("action");
+
+	 	if ( action == 'edit' )
+			$( '#LaneAssociationDivId' ).show();
+
+		var url, args, parentId, parentUrl, addUrl, deleteUrl, modelUrl;
+ 
+	 	var id = getParam("laneId");
+
+		// if edit, populate form fields		
+		if ( action == 'edit' )
+		{
+			var id = getParam("laneId");
+			
+			jQuery.ajax(
+			{
+		  		url: '/Lane/load?laneId=' + id,
+		  		dataType: 'json',
+			}).always(function( data ) 
+			{
+				var allControls = document.querySelectorAll("input, select, textArea");
+
+				for(var i=0; i < allControls.length; i++)
+				{
+					var element = allControls[i];
+					var elementName = element.name;
+					var val = '';
+					
+					var indexes = elementName.split( "." );
+					if ( indexes.length == 1 )
+						val = data[indexes[0]];
+					else if ( indexes.length == 2 && data[indexes[0]] != null )
+						val = data[indexes[0]][indexes[1]];
+
+					if ( val !== undefined && element.type )
+					{
+						if ( element.type === 'checkbox' )
+						{
+							if ( val == true )
+								element.checked = true;
+							else
+								element.checked = false;
+						}
+						else if ( element.type === 'select' )
+						{
+							// select the right option
+						}
+						element.value = val;
+					}
+				}
+			});
+		}
+	});
+	
+	function doneSavingLane()
+	{
+		document.getElementById("LaneFormStatusDivId").innerHTML = '<span style="color:blue">done saving</span>';
+	}
+	
+	function resetLane()
+	{
+		document.getElementById("LaneProfileFormId").reset();
+	}
+	
+	function saveLane()
+	{
+		$('#LaneFormLoadingDivId').show();
+
+		// need to force the val to be handled by the Boolean type
+		$("#LaneProfileFormId input:checkbox").each(function()
+		{
+    		if ( $(this).is(':checked') == false ) 
+    			$(this).val( 'false' );    			
+    		else
+    			$(this).val('true');
+  		});
+
+		var url 		= '/Lane/save';		
+		var parentUrl 	= "${parentUrl}";
+		var formData 	= formDataToJson( $('#LaneProfileFormId'));
+		var action 		= "${action}";
+
+		console.log( 'parentUrl is ' + parentUrl );
+					
+		formData = JSON.stringify( formData );
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+	  		data : formData,
+		}).always(function( data ) 
+		{
+			if ( parentUrl != 'null' && parentUrl != '' && parentUrl != '${parentUrl}' )
+			{
+				parentUrl = parentUrl + '&childId=' + data['laneId'];
+				jQuery.ajax(
+				{
+			  		url: parentUrl,
+			  		dataType: 'json',
+				}).always(function( data ) 
+				{
+				});
+			}
+
+/* 
+   force a close on create rather than show the children since there are none,\
+   causing an inspection on a freshly created Lane
+   
+			// need to assign the related hidden primary key element value to 
+			// the new value created during the save
+			document.getElementById('laneId').value = data['laneId'];
+
+			if ( action == 'create' )
+				$( '#LaneAssociationDivId' ).show();
+*/				
+			doneSavingLane();
+		});
+		
+		$('#LaneFormLoadingDivId').hide();			
+	
+	}
+    function addHelperForLane( associationClassType, roleName )
+	{    
+		var title = "Add New " + associationClassType + " for Lane " + roleName;
+		var parentId = document.getElementById("laneId").value;
+		parentUrl = '/Lane/save' + roleName + '?laneId=' + parentId;
+		var url = '/html/' + associationClassType + 'ProfileForm.html?action=create&parentUrl=' + parentUrl + '&parentName=lane&roleName=' + roleName;
+		var eventToFire = 'refresh' + roleName + 'ForLane';
+		inspectionDialog( title, url, eventToFire );
+    }
+
+	function deleteHelperForLane( nameOfRole, keyFieldName, ids )
+	{
+    	BootstrapDialog.confirm
+    	({
+        	title: 'WARNING',
+        	message: 'Are you sure?',
+            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+            closable: true, // <-- Default value is false
+            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+            callback: function(result) 
+            {
+				var elementName = nameOfRole.toLowerCase() + "." + keyFieldName;
+				var element 	= document.getElementsByName(elementName)[0];
+				var url 		= '/Lane/delete' + nameOfRole;
+				
+				url = url + '?childIds=' + ids;
+				
+				jQuery.ajax(
+				{
+			  		url: url,
+			  		dataType: 'text',
+			  		data : $('#LaneProfileFormId').serialize(),
+				}).always(function( data ) 
+				{
+					document.getElementById("LaneFormStatusDivId").innerHTML = '<span style="color:blue">done deleting</span>';
+					element.value = ""; // clear it
+				});
+			}
+    	});
+	
+	}
+</script>
+
+<div id="LaneProfileFormDiv" style="padding:4px;border:2px solid lightgray">
+  <form id="LaneProfileFormId" class="formTableClass">
+    <input type=hidden id="laneId" name="laneId" />  		  	
+<!-- Direct Attributes -->          	
+<table class="formTableClass">
+	<tr class="formTRClass">
+	  <td class="formTDClass">number</td>
+	  <td class="formTDClass">	<input type='text' id="number" name="number" placeHolder="number" required="" validate="" class="maskedWholeNumberField form-control" />
+	</td>
+	</tr>
+</table>
+
+<!-- Composites -->          	
+    <table class="formTableClass">
+    </table>
+  	<br>
+	<div>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="save Lane" onclick="saveLane()">
+		    <button type="button" class="btn btn-outline-primary">
+		      	Save
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="reset" onclick="resetLane()">
+			<button type="button" class="btn btn-outline-primary">	
+		      	Reset
+			</button>
+		</a>
+	</div>
+	 <div id="LaneFormLoadingDivId" style="display:none">
+  		saving Lane...<image src="../img/load_new.gif" width=48 height=48/>
+	</div>				  				  
+	<div id="LaneFormStatusDivId">
+	</div>				  				  
+	 
+  </form>
+</div>
+
+<div id="LaneAssociationDivId" style="display:none">
+  <div class="singleAssociationClass">
+    <table class="associationTableClass">
+	</table>
+  </div>
+
+  <div "class=multipleAssociationClass">  
+	<table class="associationTableClass">  
+	</table>
+
+  </div>
+</div>
+
+

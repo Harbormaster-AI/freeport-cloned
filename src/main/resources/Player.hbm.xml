@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!--
+  Turnstone Biologics Confidential
+  
+  2018 Turnstone Biologics, Inc.
+  All Rights Reserved.
+  
+  This file is subject to the terms and conditions defined in
+  file 'license.txt', which is part of this source code package.
+   
+  Contributors :
+        Turnstone Biologics - General Release
+-->
+<!DOCTYPE hibernate-mapping PUBLIC 
+	"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping> 
+
+<!-- AIB : #hibernateClassDeclaration() -->        
+   <class name="com.freeport.bo.Player" 
+         table="player"
+         abstract="false">         
+     <id name="playerId" type="long" >
+      <generator class="native"/>    
+    </id>
+       <property name="name" column="name" not-null="false"/>
+      <property name="dateOfBirth" column="dateOfBirth" not-null="false"/>
+      <property name="height" column="height" not-null="false"/>
+      <property name="isProfessional" column="isProfessional" not-null="false"/>
+   
+                       </class>
+<!-- ~AIB -->
+
+</hibernate-mapping>

@@ -1,0 +1,365 @@
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
+<script type="text/javascript" src="/js/jquery-mask-as-number.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.js"></script>
+
+<script>
+    $('.maskedWholeNumberField').maskAsNumber();
+    $('.maskedDecimalField').maskAsNumber({decimals: 2});
+</script>
+
+<script type="text/javascript">
+    $(".form_datetime").datetimepicker({format: 'yyyy-mm-dd',autoclose: true,todayBtn: true});
+</script>             
+
+<script type="text/javascript">
+
+	$( document ).ready(function()
+	{
+		var action = getParam("action");
+
+	 	if ( action == 'edit' )
+			$( '#GameAssociationDivId' ).show();
+
+		var url, args, parentId, parentUrl, addUrl, deleteUrl, modelUrl;
+ 
+	 	var id = getParam("gameId");
+		
+		$( "#multiSelectForPlayer" ).on("change", function(e)  
+		{
+			//assign the selected value
+			var input = document.getElementById("PlayerInputId");				
+			input.value = this.options[this.selectedIndex].text;
+	
+			if ( input.value != 'no selection' )
+			{
+				// save the Player
+				var parentId = document.getElementById( 'gameId' ).value;
+		 		var childId = this.options[this.selectedIndex].value;
+		 		var url 	= '/Game/savePlayer?gameId=' + parentId + "&childId=" + childId;
+	
+				jQuery.ajax(
+				{
+			  		url: url,
+			  		dataType: 'json',
+				}).always(function( data ) 
+				{
+					doneSavingGame();
+				});
+			}
+			// hide the select
+			$("#multiSelectForPlayerDivId").hide();
+		});
+	
+	 	$( document ).on('refreshPlayerForGame', function() 
+	 	{			
+	 		// reload Game and apply the Player
+	 		var url 	= '/Game/load?gameId=' + id;
+	 		var element = document.getElementById( 'PlayerInputId' );
+	 		var field 	= 'player.name';
+	 		
+			jQuery.ajax(
+			{
+		  		url: url,
+		  		dataType: 'json',
+			}).always(function( data ) 
+			{
+				var val = '';
+				var indexes = field.split( "." );
+				
+				if ( indexes.length == 1 )
+					val = data[indexes[0]];
+				else if ( indexes.length == 2 && data[indexes[0]] != null )
+					val = data[indexes[0]][indexes[1]];
+
+		 		element.value = val;
+			});
+	    });
+
+		// if edit, populate form fields		
+		if ( action == 'edit' )
+		{
+			var id = getParam("gameId");
+			
+			jQuery.ajax(
+			{
+		  		url: '/Game/load?gameId=' + id,
+		  		dataType: 'json',
+			}).always(function( data ) 
+			{
+				var allControls = document.querySelectorAll("input, select, textArea");
+
+				for(var i=0; i < allControls.length; i++)
+				{
+					var element = allControls[i];
+					var elementName = element.name;
+					var val = '';
+					
+					var indexes = elementName.split( "." );
+					if ( indexes.length == 1 )
+						val = data[indexes[0]];
+					else if ( indexes.length == 2 && data[indexes[0]] != null )
+						val = data[indexes[0]][indexes[1]];
+
+					if ( val !== undefined && element.type )
+					{
+						if ( element.type === 'checkbox' )
+						{
+							if ( val == true )
+								element.checked = true;
+							else
+								element.checked = false;
+						}
+						else if ( element.type === 'select' )
+						{
+							// select the right option
+						}
+						element.value = val;
+					}
+				}
+			});
+		}
+	});
+	
+	function doneSavingGame()
+	{
+		document.getElementById("GameFormStatusDivId").innerHTML = '<span style="color:blue">done saving</span>';
+	}
+	
+	function resetGame()
+	{
+		document.getElementById("GameProfileFormId").reset();
+	}
+	
+	function saveGame()
+	{
+		$('#GameFormLoadingDivId').show();
+
+		// need to force the val to be handled by the Boolean type
+		$("#GameProfileFormId input:checkbox").each(function()
+		{
+    		if ( $(this).is(':checked') == false ) 
+    			$(this).val( 'false' );    			
+    		else
+    			$(this).val('true');
+  		});
+
+		var url 		= '/Game/save';		
+		var parentUrl 	= "${parentUrl}";
+		var formData 	= formDataToJson( $('#GameProfileFormId'));
+		var action 		= "${action}";
+
+		console.log( 'parentUrl is ' + parentUrl );
+					
+		formData = JSON.stringify( formData );
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+	  		data : formData,
+		}).always(function( data ) 
+		{
+			if ( parentUrl != 'null' && parentUrl != '' && parentUrl != '${parentUrl}' )
+			{
+				parentUrl = parentUrl + '&childId=' + data['gameId'];
+				jQuery.ajax(
+				{
+			  		url: parentUrl,
+			  		dataType: 'json',
+				}).always(function( data ) 
+				{
+				});
+			}
+
+/* 
+   force a close on create rather than show the children since there are none,\
+   causing an inspection on a freshly created Game
+   
+			// need to assign the related hidden primary key element value to 
+			// the new value created during the save
+			document.getElementById('gameId').value = data['gameId'];
+
+			if ( action == 'create' )
+				$( '#GameAssociationDivId' ).show();
+*/				
+			doneSavingGame();
+		});
+		
+		$('#GameFormLoadingDivId').hide();			
+	
+	}
+		function addPlayer()
+	{
+		addHelperForGame( 'Player', 'Player' );
+	}
+	
+	function deletePlayer()
+	{ 
+		deleteHelperForGame( 'Player', 'name' );
+	}
+
+	function addPlayerFromList()
+	{
+		// display the multi-select (viewAll and Player lists)
+		$("#multiSelectForPlayerDivId").show();
+
+		jQuery.ajax(
+		{
+		    url: "/Player/viewAll",
+		    dataType: 'json',
+		}).always(function( data ) 
+		{
+			$("#multiSelectForPlayer").empty();
+			
+			var selectId	= "multiSelectForPlayer";
+			var text 		= 'name';
+			var value 		= 'playerId';
+			var includeBlank = true;
+			
+			loadOptionsWithJSONData( selectId, data, value, text, includeBlank  );
+		});
+	}
+		
+        function addHelperForGame( associationClassType, roleName )
+	{    
+		var title = "Add New " + associationClassType + " for Game " + roleName;
+		var parentId = document.getElementById("gameId").value;
+		parentUrl = '/Game/save' + roleName + '?gameId=' + parentId;
+		var url = '/html/' + associationClassType + 'ProfileForm.html?action=create&parentUrl=' + parentUrl + '&parentName=game&roleName=' + roleName;
+		var eventToFire = 'refresh' + roleName + 'ForGame';
+		inspectionDialog( title, url, eventToFire );
+    }
+
+	function deleteHelperForGame( nameOfRole, keyFieldName, ids )
+	{
+    	BootstrapDialog.confirm
+    	({
+        	title: 'WARNING',
+        	message: 'Are you sure?',
+            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+            closable: true, // <-- Default value is false
+            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+            callback: function(result) 
+            {
+				var elementName = nameOfRole.toLowerCase() + "." + keyFieldName;
+				var element 	= document.getElementsByName(elementName)[0];
+				var url 		= '/Game/delete' + nameOfRole;
+				
+				url = url + '?childIds=' + ids;
+				
+				jQuery.ajax(
+				{
+			  		url: url,
+			  		dataType: 'text',
+			  		data : $('#GameProfileFormId').serialize(),
+				}).always(function( data ) 
+				{
+					document.getElementById("GameFormStatusDivId").innerHTML = '<span style="color:blue">done deleting</span>';
+					element.value = ""; // clear it
+				});
+			}
+    	});
+	
+	}
+</script>
+
+<div id="GameProfileFormDiv" style="padding:4px;border:2px solid lightgray">
+  <form id="GameProfileFormId" class="formTableClass">
+    <input type=hidden id="gameId" name="gameId" />  		  	
+<!-- Direct Attributes -->          	
+<table class="formTableClass">
+	<tr class="formTRClass">
+	  <td class="formTDClass">frames</td>
+	  <td class="formTDClass">	<input type='text' id="frames" name="frames" placeHolder="frames" required="" validate="" class="maskedWholeNumberField form-control" />
+	</td>
+	</tr>
+</table>
+
+<!-- Composites -->          	
+    <table class="formTableClass">
+    </table>
+  	<br>
+	<div>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="save Game" onclick="saveGame()">
+		    <button type="button" class="btn btn-outline-primary">
+		      	Save
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="reset" onclick="resetGame()">
+			<button type="button" class="btn btn-outline-primary">	
+		      	Reset
+			</button>
+		</a>
+	</div>
+	 <div id="GameFormLoadingDivId" style="display:none">
+  		saving Game...<image src="../img/load_new.gif" width=48 height=48/>
+	</div>				  				  
+	<div id="GameFormStatusDivId">
+	</div>				  				  
+	 
+  </form>
+</div>
+
+<div id="GameAssociationDivId" style="display:none">
+  <div class="singleAssociationClass">
+    <table class="associationTableClass">
+		  <tr class="formTRClass">
+	    <td class="formTDClass">
+		  <div class="sectionClass">
+		    <div class="sectionHeaderClass">
+		      <span class="sectionTitleClass">
+		        Player
+		      </span>
+		    </div>
+		    <div class="sectionBodyClass">	  
+	          <table class="formTableClass">
+	            <tr class="formTRClass">
+	              <td class="formTDClass">
+	      		    <input type='text' id="PlayerInputId" name="player.name" class="form-control" disabled/>
+	      	      </td>
+	              <td  class="formTDClass" style="vertical-align:center">
+	                <div id="multiSelectForPlayerDivId" style="display:none">
+	                  <select id="multiSelectForPlayer" />
+	                  <a href="#" onclick="$('#multiSelectForPlayerDivId').hide();">
+				        <button type="button" class="btn btn-default btn-sm">
+				          <span class="glyphicon glyphicon-remove"/>
+				 	    </button>
+				      </a>
+	                </div>
+				    <a href="#" data-toggle="tooltip" data-placement="below" title="create Player" onclick="addPlayer()">
+  				      <button type="button" class="btn btn-default btn-sm">
+				        <span class="glyphicon glyphicon-plus"/>
+					  </button>
+				    </a>
+				    <a href="#" data-toggle="tooltip" data-placement="below" title="add Player from list" onclick="addPlayerFromList()">
+				      <button type="button" class="btn btn-default btn-sm">
+				        <span class="glyphicon glyphicon-th-list"/>
+					  </button>
+				    </a>
+				    <a href="#" data-toggle="tooltip" data-placement="below" title="delete Player" onclick="deletePlayer()">
+				      <button type="button" class="btn btn-default btn-sm">
+				        <span class="glyphicon glyphicon-trash"/>
+				 	  </button>
+				    </a>
+	              </td>
+	            </tr>
+		      </table>
+		    </div>
+		  </div>
+	    </td>
+	  </tr>
+		</table>
+  </div>
+
+  <div "class=multipleAssociationClass">  
+	<table class="associationTableClass">  
+	</table>
+
+  </div>
+</div>
+
+

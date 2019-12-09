@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!--
+  Turnstone Biologics Confidential
+  
+  2018 Turnstone Biologics, Inc.
+  All Rights Reserved.
+  
+  This file is subject to the terms and conditions defined in
+  file 'license.txt', which is part of this source code package.
+   
+  Contributors :
+        Turnstone Biologics - General Release
+-->
+<!DOCTYPE hibernate-mapping PUBLIC 
+	"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping> 
+
+<!-- AIB : #hibernateClassDeclaration() -->        
+   <class name="com.freeport.bo.Tournament" 
+         table="tournament"
+         abstract="false">         
+     <id name="tournamentId" type="long" >
+      <generator class="native"/>    
+    </id>
+       <property name="name" column="name" not-null="false"/>
+    	<property name="type" column="type">
+    	<type name="org.hibernate.type.EnumType">
+        	<param name="enumClass">com.freeport.bo.TournamentType</param>
+            <param name="useNamed">true</param>
+		</type>
+	</property>
+   
+               
+                                                  <set name="Matchups" cascade="persist">
+            <key column="fk_tournament_matchups_id"/>
+            <one-to-many class="com.freeport.bo.Matchup"/>
+          </set>			
+                                     </class>
+<!-- ~AIB -->
+
+</hibernate-mapping>
