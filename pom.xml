@@ -1,0 +1,479 @@
+<!--
+  Turnstone Biologics Confidential
+  
+  2018 Turnstone Biologics, Inc.
+  All Rights Reserved.
+  
+  This file is subject to the terms and conditions defined in
+  file 'license.txt', which is part of this source code package.
+   
+  Contributors :
+        Turnstone Biologics - General Release
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0  http://maven.apache.org/xsd/maven-4.0.0.xsd">  
+  
+	<modelVersion>4.0.0</modelVersion>  
+  	<groupId>com.freeport</groupId>  
+  
+  	<artifactId>lambdamongodemo</artifactId>  
+  	<version>0.0.1</version>  
+  
+  	<packaging>jar</packaging>  
+    
+  	<name>lambdamongodemo-aws-lambda-jar</name>    
+  	
+    <repositories>
+        <repository>
+            <id>maven central</id>
+            <url>https://repo.maven.apache.org/maven2/</url>
+        </repository>
+    </repositories>
+  
+	<properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+		<maven.exec.skip>true</maven.exec.skip> <!-- default to skip, use maven.exec.skip=false from the cmd line to enable -->
+		<hibernate.version>5.4.1.Final</hibernate.version>
+	<lambda.functionCode>${project.build.directory}/${project.build.finalName}.jar</lambda.functionCode>     
+      <lambda.version>${project.version}</lambda.version>
+<!-- user aws lambda options -->
+      <lambda.accessKey>${AWS_ACCESSKEY}</lambda.accessKey>
+      <lambda.secretKey>${AWS_SECRETKEY}</lambda.secretKey>
+      <lambda.s3Bucket>realmethodsdemobucket</lambda.s3Bucket>
+      <lambda.region>us-east-1</lambda.region>
+      <lambda.runtime>java8</lambda.runtime>
+      <lambda.timeout>30</lambda.timeout>
+      <lambda.forceUpdate>true</lambda.forceUpdate>
+      <lambda.publish>true</lambda.publish>
+      <lambda.lambdaRoleArn>arn:aws:iam::110777515443:role/service-role/myRoleName</lambda.lambdaRoleArn>
+      <lambda.vpcSubnetIds></lambda.vpcSubnetIds>
+      <lambda.vpcSecurityGroupIds></lambda.vpcSecurityGroupIds>
+      <lambda.delegateDAOHost></lambda.delegateDAOHost>
+      <lambda.delegateDAOPort></lambda.delegateDAOPort>
+      <lambda.kinesisStreamName>xxxxxxxxxx</lambda.kinesisStreamName>
+
+<!-- user swagger options -->      
+      <swagger.plugin.version>3.1.6</swagger.plugin.version>
+      <swagger.host></swagger.host>
+      <swagger.basepath>/</swagger.basepath>
+	  <swagger.contact.email>dev@realmethods.com</swagger.contact.email>
+      <swagger.contact.name>realMethods Dev</swagger.contact.name>
+      <swagger.contact.url></swagger.contact.url>
+	  <swagger.license.url>http://www.apache.org/licenses/LICENSE-2.0.html</swagger.license.url>
+      <swagger.license.name>Apache 2.0</swagger.license.name>
+	  <swagger.title>Lambda Functions Swagger</swagger.title>
+      <swagger.version>v1.0</swagger.version>
+      <swagger.description>Swagger file for Lambda Functions</swagger.description>
+      <swagger.termsofservice></swagger.termsofservice>
+      <swagger.outputformat>json</swagger.outputformat>
+	</properties>
+
+  <build>
+  
+    <plugins>
+    
+<!-- Apache maven ant plugin -->
+	  		<plugin>
+		        <artifactId>maven-antrun-plugin</artifactId>
+		        <version>1.7</version>
+				<dependencies>
+                        <dependency>
+                            <groupId>ant-contrib</groupId>
+                            <artifactId>ant-contrib</artifactId>
+                            <version>1.0b3</version>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>ant</groupId>
+                                    <artifactId>ant</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.ant</groupId>
+                            <artifactId>ant-nodeps</artifactId>
+                            <version>1.8.1</version>
+                        </dependency>
+                    </dependencies>
+		  		<configuration>
+		  		</configuration>
+				<executions>
+<!-- git execution -->
+		     		<execution>
+			        	<id>git</id>
+			     		<phase>compile</phase>
+			            <inherited>false</inherited>
+			            <configuration>
+						  <target name = "git">
+                            <taskdef resource="net/sf/antcontrib/antcontrib.properties"/>
+							<if>
+							  <equals arg1="${git}" arg2="true" />
+							  <then>
+							      <if>
+							        <os family="unix"/>
+									<then>
+								      <exec executable="dos2unix" logError="false" failonerror="false" failifexecutionfails="false">
+									    <arg value="${basedir}/*.sh"/>
+									  </exec>
+									  <exec executable="chmod" logError="false" failonerror="false" failifexecutionfails="false">
+									    <arg value="+x"/>
+										<arg value="${basedir}/*.sh"/>
+									  </exec>
+									</then>
+							      </if>
+   							      <exec executable="bash" logError="false" failonerror="false" failifexecutionfails="false">
+							        <arg value="--login"/>
+							        <arg value="${basedir}/gitpush.sh"/>
+							      </exec>	
+							      
+							  </then>
+							</if>
+						  </target>
+						</configuration>
+		                <goals>
+			            	<goal>run</goal>
+			            </goals>
+				  	</execution>          
+	    		</executions>    		
+			</plugin>    
+
+	  <!-- maven compiler plugin -->
+	  <plugin>
+  		<groupId>org.apache.maven.plugins</groupId>
+  		<artifactId>maven-compiler-plugin</artifactId>
+  		<version>3.7.0</version>
+  		<configuration>
+    	<excludes>
+        	<exclude>**\action\*.java</exclude>
+            <exclude>**\servlet\*.java</exclude>
+            <exclude>**\test\*.java</exclude>
+            <exclude>**\controller\*.java</exclude>
+            <exclude>**\controller\config\*.java</exclude>
+			<exclude>**\service\*.java</exclude>
+			<exclude>**\bo\*UserType.java</exclude>
+			<exclude>**\common\JsonTransformer.java</exclude>
+			<exclude>**\Application.java</exclude>
+			<exclude>**\jsp\*.jsp</exclude>
+    	</excludes>
+  		</configuration>
+	  </plugin>
+	
+<!-- shade uberjar plugin -->    
+    
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+ 			<configuration>
+          	  <filters>
+          	    <filter>
+          	      <artifact>com.freeport:demo</artifact>
+          	      <excludes>
+                	<exclude>**/action/*.class</exclude>
+                	<exclude>**/servlet/*.class</exclude>
+                	<exclude>**/test/*.class</exclude>
+					<exclude>**/service/*.class</exclude>
+					<exclude>**/delegate/*BusinessDelegate.class</exclude>
+					<exclude>*.xml</exclude>
+					<exclude>*.properties</exclude>					                						                					
+					<exclude>**/Application.class</exclude>		
+					<exclude>**/controller/*.class</exclude>
+					<exclude>**/controller/config/*.class</exclude>			                						                
+              	  </excludes>
+          	    </filter>
+          	    <filter>
+          	      <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>
+          	    <filter>
+          	      <artifact>org.jboss.spec.javax.transaction:jboss-transaction-api_1.1_spec</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>
+          	    <filter>
+          	      <artifact>org.apache.velocity:velocity</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>
+          	    <filter>
+          	      <artifact>jalopy:jalopy</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>
+          	    <filter>
+          	      <artifact>jalopy:jalopy-ant</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>          	            	   
+          	    <filter>
+          	      <artifact>org.hibernate:hibernate-core</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>          	    
+          	    <filter>
+          	      <artifact>org.hibernate:hibernate-c3p0</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>          	    
+          	    <filter>
+          	      <artifact>org.hibernate:hibernate-tools</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>          	    
+          	    <filter>
+          	      <artifact>org.hibernate:hibernate-tools</artifact>
+          	      <excludes>
+                	<exclude>**/*.*</exclude>
+                  </excludes>
+          	    </filter>          	    
+            	<filter>
+              	  <artifact>*:*</artifact>
+              	  <excludes>
+                	<exclude>META-INF/*.SF</exclude>
+                	<exclude>META-INF/*.DSA</exclude>
+                	<exclude>META-INF/*.RSA</exclude>
+              	  </excludes>
+            	</filter>
+          	  </filters>
+        	</configuration>          
+          </execution>
+        </executions>
+      </plugin>
+
+<!-- swagger plugin -->
+
+		<plugin>
+    		<groupId>com.github.kongchen</groupId>
+    		<artifactId>swagger-maven-plugin</artifactId>
+    		<version>${swagger.plugin.version}</version>
+    		<configuration>
+        		<apiSources>
+            		<apiSource>
+                		<locations>
+		                    <location>com.freeport.delegate</location>
+        		        </locations>
+                		<schemes>
+                    		<scheme>http</scheme>
+                    		<scheme>https</scheme>
+                		</schemes>
+                		<outputFormats>${swagger.outputformat}</outputFormats>
+                		<host>${swagger.host}</host>
+                		<basePath>${swagger.basepath}</basePath>
+                		<info>
+                    		<title>${swagger.title}</title>
+                    		<version>${swagger.version}</version>
+                    		<description>${swagger.description}</description>
+                    		<termsOfService>${swagger.termsofservice}</termsOfService>
+		                    <contact>
+        		                <email>${swagger.contact.email}</email>
+                        		<name>${swagger.contact.name}</name>
+                        		<url>${swagger.contact.url}</url>
+                    		</contact>
+                    		<license>
+                        		<url>${swagger.license.url}</url>
+                        		<name>${swagger.license.name}</name>
+                    		</license>
+                		</info>
+                		<securityDefinitions>
+                    		<securityDefinition>
+                        		<name>basicAuth</name>
+                        		<type>basic</type>
+                    		</securityDefinition>
+                		</securityDefinitions>
+                		<outputPath>${basedir}/generated/document.html</outputPath>
+                		<swaggerDirectory>${basedir}/generated/swagger-ui</swaggerDirectory>
+                		<modelConverters>io.swagger.validator.BeanValidator</modelConverters>
+            		</apiSource>
+        		</apiSources>
+    		</configuration>
+    		<executions>
+	        	<execution>
+    	        	<phase>compile</phase>
+        	    	<goals>
+                		<goal>generate</goal>
+            		</goals>
+        		</execution>
+    		</executions>
+    		<dependencies>
+	        	<!-- swagger-hibernate-validations BeanValidator as a custom model converter -->
+        		<dependency>
+            		<groupId>io.swagger</groupId>
+            		<artifactId>swagger-hibernate-validations</artifactId>
+            		<version>1.5.6</version>
+        		</dependency>
+    		</dependencies>
+		</plugin>
+
+<!-- aws lambda plugin -->
+ 	  <plugin>
+        <groupId>com.github.seanroy</groupId>
+        <artifactId>lambda-maven-plugin</artifactId>
+        <version>2.1.5</version>
+        <configuration>
+          <region>${lambda.region}</region>
+          <accessKey>${lambda.accessKey}</accessKey>
+          <secretKey>${lambda.secretKey}</secretKey>        
+          <functionCode>${lambda.functionCode}</functionCode>
+          <version>${lambda.version}</version>
+          <environmentVpcSecurityGroupsIds>${lambda.vpcSecurityGroupIds}</environmentVpcSecurityGroupsIds>
+          <environmentVpcSubnetIds>${lambda.vpcSubnetIds}</environmentVpcSubnetIds>
+          <lambdaRoleArn>${lambda.lambdaRoleArn}</lambdaRoleArn>
+          <s3Bucket>${lambda.s3Bucket}</s3Bucket>
+          <publish>${lambda.publish}</publish>
+          <forceUpdate>${lambda.forceUpdate}</forceUpdate>
+          <environmentVariables>
+            <mongoDbServerAddresses></mongoDbServerAddresses>
+		  </environmentVariables>
+		  <lambdaFunctionsJSON>
+			[
+            ]
+          </lambdaFunctionsJSON>
+        </configuration>
+      </plugin>
+<!-- Maven Surefire Test plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M3</version>
+                <configuration>
+                    <testSourceDirectory>${basedir}/src/main/java/</testSourceDirectory>
+                    <testClassesDirectory>${project.build.directory}/classes/</testClassesDirectory>
+                    <printSummary>false</printSummary>
+					<if>
+					  <equals arg1="${limitTestLogging}" arg2="true" />		            
+		              <systemProperties>
+                        <property> 
+	                        <name>java.util.logging.config.file</name>
+                            <value>${basedir}/src/main/resources/log4j.properties</value>
+                        </property>
+                        <property> 
+                            <name>com.mchange.v2.log.Log4jMLog.DEFAULT_CUTOFF_LEVEL</name>
+                            <value>WARNING</value>
+                        </property>
+                        <property> 
+                            <name>com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL</name>
+                            <value>WARNING</value>
+                        </property>
+                        <property> 
+                            <name>com.mchange.v2.log.MLog</name>
+                            <value>com.mchange.v2.log.FallbackMLog</value>
+                        </property>
+                      </systemProperties>
+                    </if>				
+                </configuration>          
+            </plugin>
+    </plugins>
+    
+  </build>
+   
+  <dependencies>  
+<!-- AWS Lambda Java Core -->
+	    <dependency>
+	      <groupId>com.amazonaws</groupId>
+	      <artifactId>aws-lambda-java-core</artifactId>
+	      <version>1.2.0</version>
+	    </dependency>
+<!-- Google Gson -->
+		<dependency>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+          <version>2.8.0</version>
+		</dependency>
+<!-- Jalopy pretty print  -->
+		<dependency>
+		  <groupId>jalopy</groupId>
+		  <artifactId>jalopy</artifactId>
+		  <version>1.5rc3</version>
+		</dependency>
+		
+		<dependency>
+		  <groupId>jalopy</groupId>
+		  <artifactId>jalopy-ant</artifactId>
+		  <version>0.6.2</version>
+		</dependency>
+<!-- Log4J  -->
+	    <dependency>  
+	      <groupId>log4j</groupId>  
+	      <artifactId>log4j</artifactId>  
+	      <version>1.2.14</version>  
+	      <scope>compile</scope>  
+	    </dependency>  
+
+		<dependency>
+		    <groupId>org.apache.logging.log4j</groupId>
+		    <artifactId>log4j-core</artifactId>
+		    <version>2.11.2</version>
+		</dependency>
+
+<!-- DOM Node -->
+		<dependency>
+	      <groupId>org.w3c</groupId>
+	      <artifactId>dom</artifactId>
+	      <version>2.3.0-jaxb-1.0.6</version>
+		</dependency>
+<!-- junit -->
+		<dependency>
+		  <groupId>org.junit.jupiter</groupId>
+		  <artifactId>junit-jupiter-api</artifactId>
+		  <version>5.3.1</version>
+		</dependency>
+
+		<dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-engine</artifactId>
+          <version>5.3.1</version>	
+	    </dependency>
+<!-- swagger-hibernate-validations BeanValidator as a custom model converter -->
+		<dependency>
+	    	<groupId>io.swagger</groupId>
+	    	<artifactId>swagger-jaxrs</artifactId>
+	    	<version>1.5.18</version>
+	    	<scope>compile</scope>  
+		</dependency>
+		<dependency>
+	    	<groupId>io.swagger</groupId>
+	    	<artifactId>swagger-core</artifactId>
+	    	<version>1.5.3</version>
+	    	<scope>compile</scope>  
+		</dependency>
+		<dependency>
+		    <groupId>io.swagger</groupId>
+		    <artifactId>swagger-annotations</artifactId>
+		    <version>1.5.21</version>
+		    <scope>compile</scope>  
+		</dependency>
+<!-- mongodb / morphia -->
+		<dependency>
+		    <groupId>org.mongodb.morphia</groupId>
+		    <artifactId>morphia</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.mongodb.morphia</groupId>
+		    <artifactId>morphia-logging-slf4j</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
+<!-- mongodb nosql client --> 
+		<dependency>
+			<groupId>org.mongodb</groupId>
+	      	<artifactId>mongo-java-driver</artifactId>
+	      	<version>3.4.1</version>
+		</dependency>
+  </dependencies>  
+  
+</project>  

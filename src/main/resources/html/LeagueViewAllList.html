@@ -1,0 +1,253 @@
+<html>
+	<head>
+  		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="cache-control" content="no-cache" />
+		<link href="http://code.jquery.com/ui/1.12.1/themes/cupertino/jquery-ui.css" rel="stylesheet" type="text/css"/>
+		<link href="../css/ui.jqgrid.css" rel="stylesheet" type="text/css"/>
+		<style>
+			.ui-jqgrid tr.jqgrow td,
+			.ui-jqgrid th {
+				font-size:0.8em
+			}
+		</style> 
+	</head>
+<script type="text/javascript" src="../js/jquery.jqGrid.min.js"/>
+<script type="text/javascript" src="../js/jquery.jqGrid.src.js"/>
+<script type="text/javascript" src="../js/dual-list-box.min.js"/>
+
+<script type="text/javascript">
+
+ 	$( document ).on('refreshLeagueGrid', function() {
+        populateLeagueGrid();
+    });
+
+	$( document ).ready(function()
+	{
+		$('#selectForLeague').DualListBox();
+		
+		var rowNum, height;
+		var caption = '';
+		var modelUrl = "$modelUrl";
+		console.log( 'modelurl is ' + modelUrl );
+		if (  modelUrl == 'null' || modelUrl == '' || modelUrl == '$modelUrl' )
+		{
+			caption 	= 'League List';
+			modelUrl 	= '/League/viewAll';
+			rowNum		= 20;
+			height		= 280; 
+		}
+		else
+		{
+			rowNum		= 5;
+			height		= 100;
+			$('#dualListButtonForLeagueDivId').show(); 
+		}
+			
+        var grid = jQuery("#LeagueGridTableId");
+        grid.jqGrid({
+        	url: modelUrl,
+			datatype: "json",
+																										    						colNames:[ 'League Id','Name', ],
+   			colModel:[ {name:'leagueId',index:'leagueId',hidden:true},{name:'name',index:'name',align:'center'}, ],
+   			loadtext: "Loading League List",
+			altRows:true,
+			sortable:true,
+			autowidth:true,
+			shrinkToFit : true,
+			multiselect:true,
+		    viewrecords:false,
+		    gridview:true,
+			pginput:false,
+			pgbuttons:false,
+			viewrecord:false,
+		    rowNum:rowNum,
+		    height:height,
+		    rownumbers:true,
+		    hidegrid:true,
+		    caption: caption
+		}); 
+		
+		// populate the grid
+		populateLeagueGrid();
+	});
+
+	jQuery('#LeagueGridTableId').dblclick(function () 
+	{
+		editLeague();
+	}); 			    
+
+	function addLeague()
+	{
+		var title = "Add New League";
+		var url	= ""; 		
+		var parentUrl = "${parentUrl}";
+		var eventToFire = "refreshLeagueGrid";
+		
+		if( url == 'null' || url == '' )
+			url = "/html/LeagueProfileForm.html?action=create";
+		else // append the parent if there is an addUrl provided
+			url = url + "&parentUrl=" + parentUrl;
+			
+		inspectionDialog( title, url, eventToFire );
+	}
+
+	function editLeague()
+	{
+		var id 	= getSelectedIdFromGrid( jQuery('#LeagueGridTableId'), 'leagueId' );
+	
+		if ( id != null )
+		{
+			var title = "Edit League";
+			var url = '/html/LeagueProfileForm.html?action=edit&leagueId=' + id;
+			
+			var eventToFire = "refreshLeagueGrid";
+			
+			inspectionDialog( title, url, eventToFire );
+		}
+		else
+		{
+			BootstrapDialog.alert('Please first select a League');
+		}	
+	}
+	
+	function deleteLeague()
+	{
+		var ids 	= getSelectedIdsFromGrid( jQuery('#LeagueGridTableId'), 'leagueId' );
+		if ( ids == null )
+		{
+			BootstrapDialog.alert('Please first select a League');
+		}
+		else
+		{
+	    	BootstrapDialog.confirm
+	    	({
+	        	title: 'WARNING',
+	        	message: 'Are you sure?',
+	            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+	            closable: true, // <-- Default value is false
+	            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+	            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+	            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+	            callback: function(result) 
+	            {
+	                // result will be true if button was click, while it will be false if 
+	                // users close the dialog directly.
+	                if(result) 
+	                {
+	                	var url = "${deleteUrl}";
+	                	
+	                	if ( url == '' || url == 'null' )
+	                		url = '/League/delete?a=a';
+	                	
+	                	for (i = 0; i < ids.length; i++)
+	                	{
+	                		url = url + '&childIds=' + ids[i];
+	                	}
+
+console.log( 'delete url is ' + url );
+	                							
+						jQuery.ajax(
+						{
+					  		url: url,
+					  		dataType: 'json',
+						}).always(function( data ) 
+						{
+							populateLeagueGrid()
+						});		
+	                }
+	            }
+	    	});
+	    }
+	}
+
+	function addLeagueFromAllList()
+	{
+		var sourceUrl	= '/League/viewAll';
+		var modelUrl 	= "${modelUrl}";
+		var value 		= 'leagueId';
+		var text 		= 'name';
+		var roleName	= getParam( "roleName" );
+		
+		if ( roleName == 'null' || roleName == null )
+			roleName = 'All-League';
+			
+		multiselect( sourceUrl, modelUrl, roleName, value, text, assignLeagueSelectionsFromAllList );  
+	}
+
+	function assignLeagueSelectionsFromAllList( ids )
+	{
+		var url = "${parentUrl}";
+		for (i = 0; i < ids.length; i++)
+    	{
+    		url = url + '&childIds=' + ids[i];
+    	}
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+		}).always(function( data ) 
+		{
+			populateLeagueGrid()
+		});		
+	}
+	
+	function populateLeagueGrid()
+	{
+		$('#loadingDivId').show();
+		$('#LeagueGridTableId').trigger( 'reloadGrid' );
+		$('#loadingDivId').hide();			
+	}
+	
+</script>
+
+<table id="LeagueGridTableId"></table>
+<div>
+<br>
+<table
+  <tr>
+    <td>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="refresh" onclick="populateLeagueGrid()" >
+		    <button type="button" class="btn btn-info btn-sm">
+		      <span class="glyphicon glyphicon-refresh">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="add League" onclick="addLeague()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-plus">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="edit League" onclick="editLeague()" >
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-pencil">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="delete League" onclick="deleteLeague()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-trash">
+		      </span>
+			</button>
+		</a>
+	  </td>
+	  <td>
+		<div id="dualListButtonForLeagueDivId" style="display:none">
+		  <a href="#" data-toggle="tooltip" data-placement="below" title="add League From List" onclick="addLeagueFromAllList()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-th-list">
+		      </span>
+			</button>
+		  </a>
+		<div>
+ 	  </td>
+ 	</tr>
+</table>
+
+<div id="loadingDivId" style="display:none;color:black">
+  loading all League entities...<image src="../img/load_new.gif" width=48 height=48/>
+</div>				  				  
+
+</html>

@@ -1,0 +1,253 @@
+<html>
+	<head>
+  		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="cache-control" content="no-cache" />
+		<link href="http://code.jquery.com/ui/1.12.1/themes/cupertino/jquery-ui.css" rel="stylesheet" type="text/css"/>
+		<link href="../css/ui.jqgrid.css" rel="stylesheet" type="text/css"/>
+		<style>
+			.ui-jqgrid tr.jqgrow td,
+			.ui-jqgrid th {
+				font-size:0.8em
+			}
+		</style> 
+	</head>
+<script type="text/javascript" src="../js/jquery.jqGrid.min.js"/>
+<script type="text/javascript" src="../js/jquery.jqGrid.src.js"/>
+<script type="text/javascript" src="../js/dual-list-box.min.js"/>
+
+<script type="text/javascript">
+
+ 	$( document ).on('refreshPlayerGrid', function() {
+        populatePlayerGrid();
+    });
+
+	$( document ).ready(function()
+	{
+		$('#selectForPlayer').DualListBox();
+		
+		var rowNum, height;
+		var caption = '';
+		var modelUrl = "$modelUrl";
+		console.log( 'modelurl is ' + modelUrl );
+		if (  modelUrl == 'null' || modelUrl == '' || modelUrl == '$modelUrl' )
+		{
+			caption 	= 'Player List';
+			modelUrl 	= '/Player/viewAll';
+			rowNum		= 20;
+			height		= 280; 
+		}
+		else
+		{
+			rowNum		= 5;
+			height		= 100;
+			$('#dualListButtonForPlayerDivId').show(); 
+		}
+			
+        var grid = jQuery("#PlayerGridTableId");
+        grid.jqGrid({
+        	url: modelUrl,
+			datatype: "json",
+																										    																				    																				    																				    						colNames:[ 'Player Id','Name','Date Of Birth','Height','Is Professional', ],
+   			colModel:[ {name:'playerId',index:'playerId',hidden:true},{name:'name',index:'name',align:'center'},{name:'dateOfBirth',index:'dateOfBirth',align:'center',formatter:'date', formatoptions: { srcformat:'yyyy-mm-dd', newformat:'yyyy-mm-dd'}},{name:'height',index:'height',align:'center'},{name:'isProfessional',index:'isProfessional',align:'center'}, ],
+   			loadtext: "Loading Player List",
+			altRows:true,
+			sortable:true,
+			autowidth:true,
+			shrinkToFit : true,
+			multiselect:true,
+		    viewrecords:false,
+		    gridview:true,
+			pginput:false,
+			pgbuttons:false,
+			viewrecord:false,
+		    rowNum:rowNum,
+		    height:height,
+		    rownumbers:true,
+		    hidegrid:true,
+		    caption: caption
+		}); 
+		
+		// populate the grid
+		populatePlayerGrid();
+	});
+
+	jQuery('#PlayerGridTableId').dblclick(function () 
+	{
+		editPlayer();
+	}); 			    
+
+	function addPlayer()
+	{
+		var title = "Add New Player";
+		var url	= ""; 		
+		var parentUrl = "${parentUrl}";
+		var eventToFire = "refreshPlayerGrid";
+		
+		if( url == 'null' || url == '' )
+			url = "/html/PlayerProfileForm.html?action=create";
+		else // append the parent if there is an addUrl provided
+			url = url + "&parentUrl=" + parentUrl;
+			
+		inspectionDialog( title, url, eventToFire );
+	}
+
+	function editPlayer()
+	{
+		var id 	= getSelectedIdFromGrid( jQuery('#PlayerGridTableId'), 'playerId' );
+	
+		if ( id != null )
+		{
+			var title = "Edit Player";
+			var url = '/html/PlayerProfileForm.html?action=edit&playerId=' + id;
+			
+			var eventToFire = "refreshPlayerGrid";
+			
+			inspectionDialog( title, url, eventToFire );
+		}
+		else
+		{
+			BootstrapDialog.alert('Please first select a Player');
+		}	
+	}
+	
+	function deletePlayer()
+	{
+		var ids 	= getSelectedIdsFromGrid( jQuery('#PlayerGridTableId'), 'playerId' );
+		if ( ids == null )
+		{
+			BootstrapDialog.alert('Please first select a Player');
+		}
+		else
+		{
+	    	BootstrapDialog.confirm
+	    	({
+	        	title: 'WARNING',
+	        	message: 'Are you sure?',
+	            type: BootstrapDialog.TYPE_WARNING, // <-- Default value is BootstrapDialog.TYPE_PRIMARY
+	            closable: true, // <-- Default value is false
+	            btnCancelLabel: 'No', // <-- Default value is 'Cancel',
+	            btnOKLabel: 'Yes', // <-- Default value is 'OK',
+	            btnOKClass: 'btn-warning', // <-- If you didn't specify it, dialog type will be used,
+	            callback: function(result) 
+	            {
+	                // result will be true if button was click, while it will be false if 
+	                // users close the dialog directly.
+	                if(result) 
+	                {
+	                	var url = "${deleteUrl}";
+	                	
+	                	if ( url == '' || url == 'null' )
+	                		url = '/Player/delete?a=a';
+	                	
+	                	for (i = 0; i < ids.length; i++)
+	                	{
+	                		url = url + '&childIds=' + ids[i];
+	                	}
+
+console.log( 'delete url is ' + url );
+	                							
+						jQuery.ajax(
+						{
+					  		url: url,
+					  		dataType: 'json',
+						}).always(function( data ) 
+						{
+							populatePlayerGrid()
+						});		
+	                }
+	            }
+	    	});
+	    }
+	}
+
+	function addPlayerFromAllList()
+	{
+		var sourceUrl	= '/Player/viewAll';
+		var modelUrl 	= "${modelUrl}";
+		var value 		= 'playerId';
+		var text 		= 'name';
+		var roleName	= getParam( "roleName" );
+		
+		if ( roleName == 'null' || roleName == null )
+			roleName = 'All-Player';
+			
+		multiselect( sourceUrl, modelUrl, roleName, value, text, assignPlayerSelectionsFromAllList );  
+	}
+
+	function assignPlayerSelectionsFromAllList( ids )
+	{
+		var url = "${parentUrl}";
+		for (i = 0; i < ids.length; i++)
+    	{
+    		url = url + '&childIds=' + ids[i];
+    	}
+				
+		jQuery.ajax(
+		{
+	  		url: url,
+	  		dataType: 'json',
+		}).always(function( data ) 
+		{
+			populatePlayerGrid()
+		});		
+	}
+	
+	function populatePlayerGrid()
+	{
+		$('#loadingDivId').show();
+		$('#PlayerGridTableId').trigger( 'reloadGrid' );
+		$('#loadingDivId').hide();			
+	}
+	
+</script>
+
+<table id="PlayerGridTableId"></table>
+<div>
+<br>
+<table
+  <tr>
+    <td>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="refresh" onclick="populatePlayerGrid()" >
+		    <button type="button" class="btn btn-info btn-sm">
+		      <span class="glyphicon glyphicon-refresh">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="add Player" onclick="addPlayer()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-plus">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="edit Player" onclick="editPlayer()" >
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-pencil">
+		      </span>
+			</button>
+		</a>
+		<a href="#" data-toggle="tooltip" data-placement="below" title="delete Player" onclick="deletePlayer()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-trash">
+		      </span>
+			</button>
+		</a>
+	  </td>
+	  <td>
+		<div id="dualListButtonForPlayerDivId" style="display:none">
+		  <a href="#" data-toggle="tooltip" data-placement="below" title="add Player From List" onclick="addPlayerFromAllList()">
+		    <button type="button" class="btn btn-outline-primary">
+		      <span class="glyphicon glyphicon-th-list">
+		      </span>
+			</button>
+		  </a>
+		<div>
+ 	  </td>
+ 	</tr>
+</table>
+
+<div id="loadingDivId" style="display:none;color:black">
+  loading all Player entities...<image src="../img/load_new.gif" width=48 height=48/>
+</div>				  				  
+
+</html>

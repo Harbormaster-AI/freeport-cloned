@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+  Turnstone Biologics Confidential
+  
+  2018 Turnstone Biologics, Inc.
+  All Rights Reserved.
+  
+  This file is subject to the terms and conditions defined in
+  file 'license.txt', which is part of this source code package.
+   
+  Contributors :
+        Turnstone Biologics - General Release
+-->
+<!DOCTYPE hibernate-mapping PUBLIC 
+	"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+	
+<hibernate-mapping> 
+
+<!-- AIB : #hibernateClassDeclaration() -->        
+   <class name="com.freeport.bo.Alley" 
+         table="alley"
+         abstract="false">         
+     <id name="alleyId" type="long" >
+      <generator class="native"/>    
+    </id>
+       <property name="name" column="name" not-null="false"/>
+      
+               
+                                                  <set name="Leagues" cascade="persist">
+            <key column="fk_alley_leagues_id"/>
+            <one-to-many class="com.freeport.bo.League"/>
+          </set>			
+                                    
+                                                  <set name="Tournaments" cascade="persist">
+            <key column="fk_alley_tournaments_id"/>
+            <one-to-many class="com.freeport.bo.Tournament"/>
+          </set>			
+                                    
+                                                  <set name="Lanes" cascade="persist">
+            <key column="fk_alley_lanes_id"/>
+            <one-to-many class="com.freeport.bo.Lane"/>
+          </set>			
+                                   </class>
+<!-- ~AIB -->
+
+</hibernate-mapping>
